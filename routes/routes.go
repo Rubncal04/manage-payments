@@ -26,6 +26,7 @@ func RegisterRoutes(e *echo.Echo, mongoRepo *db.MongoRepo) {
 	private.PUT("/users/:id", userHandler.UpdateUser)
 
 	// Payment routes
+	private.GET("/payments", paymentHandler.GetAllPayments)
 	private.GET("/:userId/payments", paymentHandler.GetPaymentsByUser)
 	private.POST("/:userId/payments", paymentHandler.CreatePayment)
 }

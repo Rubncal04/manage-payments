@@ -56,3 +56,12 @@ func (h *PaymentHandler) GetPaymentsByUser(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, payments)
 }
+
+func (h *PaymentHandler) GetAllPayments(c echo.Context) error {
+	payments, err := h.Repo.GetAllPayments()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, payments)
+}

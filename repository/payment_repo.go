@@ -61,3 +61,12 @@ func (r *PaymentRepository) GetPaymentsByUser(userID primitive.ObjectID) ([]mode
 	}
 	return payments, nil
 }
+
+func (r *PaymentRepository) GetAllPayments() ([]models.Payment, error) {
+	var payments []models.Payment
+	err := r.Mongo.FindAll("payments", bson.M{}, &payments)
+	if err != nil {
+		return nil, err
+	}
+	return payments, nil
+}
