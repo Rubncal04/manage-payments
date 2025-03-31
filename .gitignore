@@ -1,0 +1,35 @@
+# Ignore compiled binary files.
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Ignore build and binary directories.
+bin/
+build/
+
+# Ignore vendor directory if you don't want to commit dependencies.
+# Uncomment the following line if you are using vendor directory.
+# vendor/
+
+# Ignore environment variable files.
+.env
+
+# Ignore temporary files and folders.
+temp/
+
+# Ignore log files.
+*.log
+
+# Ignore IDE/editor configuration files.
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Ignore OS-specific files.
+.DS_Store
+Thumbs.db
