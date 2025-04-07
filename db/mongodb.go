@@ -120,3 +120,17 @@ func (m *MongoRepo) UpdateOne(collectionName string, filter any, update any) err
 
 	return nil
 }
+
+// UpdateMany updates multiple documents in a collection
+func (m *MongoRepo) UpdateMany(collectionName string, filter any, update any) (*mongo.UpdateResult, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	collection := m.Db.Collection(collectionName)
+	result, err := collection.UpdateMany(ctx, filter, update)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}

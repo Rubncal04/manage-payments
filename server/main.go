@@ -69,12 +69,37 @@ func StartServer() {
 	}
 
 	c := cron.New(cron.WithLocation(loc))
+
+	// Add payment reminder task
 	_, err = c.AddFunc("0 17 * * *", func() {
 		log.Println("Running payment verification...")
 		scheduler.SendPaymentReminders(mongoRepo, twilioService)
 	})
 	if err != nil {
-		log.Fatalf("Error scheduling task: %v", err)
+		log.Fatalf("Error scheduling payment reminder task: %v", err)
+	}
+
+	// Add payment status update tasks
+	// Run on the 13th of each month
+	_, err = c.AddFunc("0 0 13 * *", func() {
+		log.Println("Running payment status update for users with payment dates 15-20...")
+		if err := scheduler.UpdatePaymentStatus(mongoRepo); err != nil {
+			log.Printf("Error updating payment status: %v", err)
+		}
+	})
+	if err != nil {
+		log.Fatalf("Error scheduling payment status update task (13th): %v", err)
+	}
+
+	// Run on the 25th of each month
+	_, err = c.AddFunc("0 0 25 * *", func() {
+		log.Println("Running payment status update for users with payment dates 28-30...")
+		if err := scheduler.UpdatePaymentStatus(mongoRepo); err != nil {
+			log.Printf("Error updating payment status: %v", err)
+		}
+	})
+	if err != nil {
+		log.Fatalf("Error scheduling payment status update task (25th): %v", err)
 	}
 
 	c.Start()
