@@ -10,7 +10,9 @@ import (
 
 	"github/Rubncal04/youtube-premium/config"
 	"github/Rubncal04/youtube-premium/db"
+	"github/Rubncal04/youtube-premium/notifications"
 	"github/Rubncal04/youtube-premium/routes"
+	"github/Rubncal04/youtube-premium/scheduler"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -59,7 +61,7 @@ func StartServer() {
 	if twilioAccountSID == "" || twilioAuthToken == "" || twilioFromWhatsApp == "" {
 		log.Fatalf("TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN o TWILIO_FROM_WHATSAPP no están configurados")
 	}
-	// twilioService := notifications.NewTwilioService(twilioAccountSID, twilioAuthToken, twilioFromWhatsApp)
+	twilioService := notifications.NewTwilioService(twilioAccountSID, twilioAuthToken, twilioFromWhatsApp)
 
 	loc, err := time.LoadLocation("America/Bogota")
 	if err != nil {
@@ -67,9 +69,9 @@ func StartServer() {
 	}
 
 	c := cron.New(cron.WithLocation(loc))
-	_, err = c.AddFunc("* 17 * * *", func() {
-		log.Println("Ejecutando verificación de pagos...")
-		// scheduler.SendPaymentReminders(mongoRepo, twilioService)
+	_, err = c.AddFunc("0 17 * * *", func() {
+		log.Println("Running payment verification...")
+		scheduler.SendPaymentReminders(mongoRepo, twilioService)
 	})
 	if err != nil {
 		log.Fatalf("Error scheduling task: %v", err)

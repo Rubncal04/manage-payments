@@ -1,81 +1,96 @@
 package notifications
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
 	"fmt"
 	"github/Rubncal04/youtube-premium/models"
-	"io"
-	"net/http"
-	"net/url"
-	"time"
+	"regexp"
+	"strings"
+
+	"github.com/twilio/twilio-go"
+	api "github.com/twilio/twilio-go/rest/api/v2010"
 )
 
-// TwilioService implementa el envío de mensajes usando la API de Twilio para WhatsApp.
+// TwilioService implements WhatsApp message sending using Twilio's API
 type TwilioService struct {
-	AccountSID   string
-	AuthToken    string
-	FromWhatsApp string // Número de WhatsApp de Twilio, en formato: "whatsapp:+14155238886"
+	client       *twilio.RestClient
+	fromWhatsApp string
 }
 
-// NewTwilioService crea una nueva instancia de TwilioService.
+// NewTwilioService creates a new instance of TwilioService
 func NewTwilioService(accountSID, authToken, fromWhatsApp string) *TwilioService {
+	// Ensure the fromWhatsApp number is properly formatted
+	if !strings.HasPrefix(fromWhatsApp, "whatsapp:") {
+		fromWhatsApp = "whatsapp:" + fromWhatsApp
+	}
+
+	client := twilio.NewRestClientWithParams(twilio.ClientParams{
+		Username: accountSID,
+		Password: authToken,
+	})
+
 	return &TwilioService{
-		AccountSID:   accountSID,
-		AuthToken:    authToken,
-		FromWhatsApp: fromWhatsApp,
+		client:       client,
+		fromWhatsApp: fromWhatsApp,
 	}
 }
 
-// SendReminder envía un recordatorio a través de WhatsApp usando la API de Twilio.
-// Se espera que el modelo User tenga un campo CellPhone que contenga el número de teléfono
-// del usuario en formato internacional, sin símbolos, por ejemplo: "573001234567".
+// validatePhoneNumber ensures the phone number is in the correct format
+func (ts *TwilioService) validatePhoneNumber(phone string) error {
+	// Remove any non-digit characters
+	cleanPhone := regexp.MustCompile(`[^\d]`).ReplaceAllString(phone, "")
+
+	// Check if the phone number is between 10 and 15 digits
+	if len(cleanPhone) < 10 || len(cleanPhone) > 15 {
+		return fmt.Errorf("invalid phone number length: %s", phone)
+	}
+
+	return nil
+}
+
+// formatWhatsAppNumber formats a phone number for WhatsApp messaging
+func (ts *TwilioService) formatWhatsAppNumber(phone string) string {
+	// Remove any non-digit characters
+	cleanPhone := regexp.MustCompile(`[^\d]`).ReplaceAllString(phone, "")
+
+	// Ensure the number starts with a plus sign
+	if !strings.HasPrefix(cleanPhone, "+") {
+		cleanPhone = "+57" + cleanPhone
+	}
+
+	return "whatsapp:" + cleanPhone
+}
+
+// SendReminder sends a WhatsApp reminder using Twilio's API
 func (ts *TwilioService) SendReminder(user models.User, message string) error {
-	// Construir la URL del endpoint de Twilio.
-	urlStr := fmt.Sprintf("https://api.twilio.com/2010-04-01/Accounts/%s/Messages.json", ts.AccountSID)
+	// Validate phone number
+	if err := ts.validatePhoneNumber(user.CellPhone); err != nil {
+		return fmt.Errorf("invalid phone number for user %s: %w", user.ID.Hex(), err)
+	}
 
-	// Construir los datos del formulario.
-	formData := url.Values{}
-	formData.Set("To", fmt.Sprintf("whatsapp:+%s", user.CellPhone))
-	formData.Set("From", ts.FromWhatsApp)
-	formData.Set("Body", message)
+	// Format the WhatsApp number
+	toNumber := ts.formatWhatsAppNumber(user.CellPhone)
 
-	// Crear el request con timeout.
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	fmt.Println("toNumber", toNumber)
 
-	req, err := http.NewRequestWithContext(ctx, "POST", urlStr, bytes.NewBufferString(formData.Encode()))
+	// Create message parameters
+	params := &api.CreateMessageParams{}
+	params.SetTo(toNumber)
+	params.SetFrom(ts.fromWhatsApp)
+	params.SetBody(message)
+
+	// Send message using Twilio SDK
+	messageResponse, err := ts.client.Api.CreateMessage(params)
 	if err != nil {
-		return fmt.Errorf("error creating Twilio request: %w", err)
+		// Check for specific Twilio error codes
+		if strings.Contains(err.Error(), "63007") {
+			return fmt.Errorf("invalid WhatsApp configuration: %w\nPlease ensure:\n1. Your WhatsApp number is verified in Twilio\n2. The number format is correct (whatsapp:+1234567890)\n3. WhatsApp is enabled for your account", err)
+		}
+		return fmt.Errorf("error sending WhatsApp message: %w", err)
 	}
 
-	// Configurar headers y autenticación básica.
-	req.SetBasicAuth(ts.AccountSID, ts.AuthToken)
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("error sending Twilio request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Leer la respuesta para debug (puedes parsearla si lo deseas)
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("error reading Twilio response: %w", err)
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("twilio API error, status: %s, response: %s", resp.Status, string(body))
-	}
-
-	// Opcional: parsear la respuesta JSON si se requiere.
-	var result map[string]any
-	if err := json.Unmarshal(body, &result); err != nil {
-		return fmt.Errorf("error parsing Twilio response: %w", err)
-	}
+	// Log successful message
+	fmt.Printf("Message sent successfully to %s. SID: %s, Status: %s\n",
+		user.CellPhone, *messageResponse.Sid, *messageResponse.Status)
 
 	return nil
 }

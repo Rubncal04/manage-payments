@@ -36,12 +36,12 @@ func SendPaymentReminders(mongoRepo *db.MongoRepo, notifier notifications.Notifi
 		// Si el día actual está dentro de la ventana de 5 días a partir del día de pago.
 		if currentDay >= dueDay && currentDay <= dueDay+4 {
 			message := "Hola, te recuerdo el compromiso que tienes con YouTube Premium. ¡Quédate al día con tu pago! 😉"
-			log.Printf("Sending reminder to user %s via Telegram...", user.ID.Hex())
+			log.Printf("Sending reminder to user %s via Whatsapp...", user.Name)
 
 			// Enviar recordatorio usando el servicio de notificaciones.
 			err := notifier.SendReminder(user, message)
 			if err != nil {
-				log.Printf("Error sending reminder to user %s: %v", user.ID.Hex(), err)
+				log.Printf("Error sending reminder to user %s: %v", user.Name, err)
 			}
 		}
 	}

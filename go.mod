@@ -7,7 +7,12 @@ require (
 	github.com/labstack/echo/v4 v4.13.3
 )
 
-require golang.org/x/time v0.8.0 // indirect
+require (
+	github.com/golang/mock v1.6.0 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/twilio/twilio-go v1.24.1 // indirect
+	golang.org/x/time v0.8.0 // indirect
+)
 
 require (
 	github.com/golang/snappy v0.0.4 // indirect
