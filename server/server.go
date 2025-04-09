@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -10,47 +11,74 @@ import (
 
 	"github/Rubncal04/youtube-premium/config"
 	"github/Rubncal04/youtube-premium/db"
+	"github/Rubncal04/youtube-premium/handlers"
+	mid "github/Rubncal04/youtube-premium/middleware"
 	"github/Rubncal04/youtube-premium/notifications"
 	"github/Rubncal04/youtube-premium/routes"
 	"github/Rubncal04/youtube-premium/scheduler"
 
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	echoMiddleware "github.com/labstack/echo/v4/middleware"
 	"github.com/robfig/cron/v3"
 )
 
 func StartServer() {
+	// Get environment variables
+	envVariables := config.GetVariables()
+	secretKey := envVariables.JWT_SECRET_KEY
+	if secretKey == "" {
+		log.Fatal("JWT_SECRET_KEY environment variable is required")
+	}
+
+	// Initialize Echo
 	e := echo.New()
 
-	// Configurar las variables de entorno
-	envVariables := config.GetVariables()
+	// Middleware
+	e.Use(echoMiddleware.Logger())
+	e.Use(echoMiddleware.Recover())
+	e.Use(echoMiddleware.CORSWithConfig(echoMiddleware.CORSConfig{
+		AllowOrigins: []string{"http://localhost:5173"}, // URL de tu aplicación React
+		AllowMethods: []string{echo.GET, echo.PUT, echo.POST, echo.DELETE},
+		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
+	}))
+
+	// Initialize MongoDB repository
+	mongoRepo, err := db.NewMongoRepo(envVariables)
+	if err != nil {
+		log.Fatalf("Failed to connect to MongoDB: %v", err)
+	}
+	defer mongoRepo.Close()
+
+	// Public routes
+	e.GET("/", func(c echo.Context) error {
+		return c.String(http.StatusOK, "Welcome to YouTube Premium API")
+	})
+
+	// Auth routes
+	e.POST("/login", func(c echo.Context) error {
+		return handlers.Login(c, mongoRepo, secretKey)
+	})
+	e.POST("/refresh", func(c echo.Context) error {
+		return handlers.RefreshToken(c, secretKey)
+	})
+
+	// Protected routes
+	api := e.Group("/api")
+	api.Use(mid.AuthMiddleware(secretKey))
+
+	// Register other routes
+	routes.RegisterRoutes(e, mongoRepo, secretKey)
+
+	// Start server
 	port := envVariables.PORT
 	if port == "" {
 		port = ":8080"
 	}
 
-	// Set CORS
-	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"http://localhost:5173"}, // URL de tu aplicación React
-		AllowMethods: []string{echo.GET, echo.PUT, echo.POST, echo.DELETE},
-		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
-	}))
-
-	// Inicializar conexión a MongoDB
-	mongoRepo, err := db.NewMongoRepo(envVariables)
-	if err != nil {
-		log.Fatalf("Error initializing MongoDB: %v", err)
-	}
-	defer mongoRepo.Close()
-
-	// Configurar rutas
-	routes.RegisterRoutes(e, mongoRepo)
-
-	// Iniciar el servidor
+	// Graceful shutdown
 	go func() {
-		log.Printf("🚀 Server running on http://localhost%s", port)
-		if err := e.Start(port); err != nil {
-			log.Fatalf("Error starting server: %v", err)
+		if err := e.Start(port); err != nil && err != http.ErrServerClosed {
+			e.Logger.Fatal("shutting down the server")
 		}
 	}()
 
@@ -71,7 +99,7 @@ func StartServer() {
 	c := cron.New(cron.WithLocation(loc))
 
 	// Add payment reminder task
-	_, err = c.AddFunc("0 17 * * *", func() {
+	_, err = c.AddFunc("0 16 * * *", func() {
 		log.Println("Running payment verification...")
 		scheduler.SendPaymentReminders(mongoRepo, twilioService)
 	})
@@ -104,20 +132,13 @@ func StartServer() {
 
 	c.Start()
 
-	// Capturar señales para cierre ordenado
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-
-	<-stop
-	log.Println("Shutting down server...")
-
-	// Cierre ordenado con contexto
+	// Wait for interrupt signal to gracefully shutdown the server
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-
 	if err := e.Shutdown(ctx); err != nil {
-		log.Fatalf("Error shutting down server: %v", err)
-	} else {
-		log.Println("✅ Server shut down cleanly")
+		e.Logger.Fatal(err)
 	}
 }

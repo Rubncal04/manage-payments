@@ -15,6 +15,7 @@ type EnvVariables struct {
 	TWILIO_ACCOUNT_SID   string
 	TWILIO_AUTH_TOKEN    string
 	TWILIO_FROM_WHATSAPP string
+	JWT_SECRET_KEY       string
 }
 
 func GetVariables() *EnvVariables {
@@ -31,5 +32,6 @@ func GetVariables() *EnvVariables {
 		TWILIO_ACCOUNT_SID:   os.Getenv("TWILIO_ACCOUNT_SID"),
 		TWILIO_AUTH_TOKEN:    os.Getenv("TWILIO_AUTH_TOKEN"),
 		TWILIO_FROM_WHATSAPP: os.Getenv("TWILIO_FROM_WHATSAPP"),
+		JWT_SECRET_KEY:       os.Getenv("JWT_SECRET_KEY"),
 	}
 }
