@@ -14,7 +14,7 @@ func AuthMiddleware(secretKey string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			// Skip authentication for public routes
-			if c.Path() == "/register" || c.Path() == "/login" || c.Path() == "/refresh" {
+			if c.Request().URL.Path == "/register" || c.Request().URL.Path == "/login" || c.Request().URL.Path == "/refresh" || c.Request().URL.Path == "/" {
 				return next(c)
 			}
 

@@ -5,6 +5,8 @@ import (
 	"github/Rubncal04/youtube-premium/repository"
 	"net/http"
 
+	"fmt"
+
 	"github.com/labstack/echo/v4"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -49,6 +51,55 @@ func (h *PaymentHandler) GetAllPayments(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, allPayments)
+}
+
+// GetOnePayment handles getting a single payment by ID
+func (h *PaymentHandler) GetOnePayment(c echo.Context) error {
+
+	clientID, err := primitive.ObjectIDFromHex(c.Param("clientId"))
+	if err != nil {
+		fmt.Printf("GetOnePayment: Error on convert clientId: %v\n", err)
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid client ID"})
+	}
+
+	paymentID, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		fmt.Printf("GetOnePayment: Error on convert paymentId: %v\n", err)
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid payment ID"})
+	}
+
+	// Verify that the client belongs to the authenticated user
+	client, err := h.clientRepo.GetByID(clientID.Hex())
+	if err != nil {
+		fmt.Printf("GetOnePayment: Error on get client: %v\n", err)
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "Client not found"})
+	}
+
+	userID, ok := c.Get("user_id").(primitive.ObjectID)
+	if !ok {
+		fmt.Println("GetOnePayment: Error on get user_id from context")
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Unauthorized"})
+	}
+
+	if client.UserID != userID {
+		fmt.Printf("GetOnePayment: Error on verify user_id: %v with client_id: %v\n", userID, client.UserID)
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Unauthorized"})
+	}
+
+	// Get the payment
+	payment, err := h.paymentRepo.GetByID(paymentID)
+	if err != nil {
+		fmt.Printf("GetOnePayment: Error on get payment: %v\n", err)
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "Payment not found"})
+	}
+
+	// Verify that the payment belongs to the client
+	if payment.ClientID != clientID {
+		fmt.Printf("GetOnePayment: Error on verify payment_id: %v with client_id: %v\n", paymentID, clientID)
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "Payment not found for this client"})
+	}
+
+	return c.JSON(http.StatusOK, payment)
 }
 
 // GetPaymentsByClient handles getting all payments for a specific client

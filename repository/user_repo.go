@@ -30,9 +30,8 @@ func (r *UserRepository) GetAllUsers() ([]models.User, error) {
 func (r *UserRepository) CreateUser(user *models.User) (models.User, error) {
 	coll, err := r.Mongo.Create("users", user)
 	newUser := models.User{
-		ID:        coll.InsertedID.(primitive.ObjectID),
-		Name:      user.Name,
-		CellPhone: user.CellPhone,
+		ID:   coll.InsertedID.(primitive.ObjectID),
+		Name: user.Name,
 	}
 
 	if err != nil {

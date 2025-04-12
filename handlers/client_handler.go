@@ -19,7 +19,6 @@ type ClientRequest struct {
 	Name      string `json:"name"`
 	CellPhone string `json:"cell_phone"`
 	DayToPay  int    `json:"day_to_pay"`
-	Status    string `json:"status"`
 }
 
 func NewClientHandler(clientRepo *repository.ClientRepository) *ClientHandler {
@@ -118,7 +117,6 @@ func (h *ClientHandler) UpdateClient(c echo.Context) error {
 		"name":       updateRequest.Name,
 		"cell_phone": updateRequest.CellPhone,
 		"day_to_pay": updateRequest.DayToPay,
-		"status":     updateRequest.Status,
 		"updated_at": time.Now(),
 	}
 

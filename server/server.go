@@ -2,17 +2,17 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github/Rubncal04/youtube-premium/config"
 	"github/Rubncal04/youtube-premium/db"
-	"github/Rubncal04/youtube-premium/handlers"
-	mid "github/Rubncal04/youtube-premium/middleware"
 	"github/Rubncal04/youtube-premium/notifications"
 	"github/Rubncal04/youtube-premium/routes"
 	"github/Rubncal04/youtube-premium/scheduler"
@@ -49,31 +49,24 @@ func StartServer() {
 	}
 	defer mongoRepo.Close()
 
-	// Public routes
+	// Root route
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Welcome to YouTube Premium API")
 	})
 
-	// Auth routes
-	e.POST("/login", func(c echo.Context) error {
-		return handlers.Login(c, mongoRepo, secretKey)
-	})
-	e.POST("/refresh", func(c echo.Context) error {
-		return handlers.RefreshToken(c, secretKey)
-	})
-
-	// Protected routes
-	api := e.Group("/api")
-	api.Use(mid.AuthMiddleware(secretKey))
-
-	// Register other routes
+	// Register all routes
 	routes.RegisterRoutes(e, mongoRepo, secretKey)
 
 	// Start server
 	port := envVariables.PORT
 	if port == "" {
-		port = ":8080"
+		port = "9120"
 	}
+	if !strings.HasPrefix(port, ":") {
+		port = ":" + port
+	}
+
+	fmt.Printf("Servidor iniciando en el puerto %s...\n", port)
 
 	// Graceful shutdown
 	go func() {
