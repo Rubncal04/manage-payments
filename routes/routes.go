@@ -41,7 +41,7 @@ func RegisterRoutes(e *echo.Echo, mongoRepo *db.MongoRepo, secretKey string) {
 	api.GET("/clients", clientHandler.GetClients)
 	api.GET("/clients/:id", clientHandler.GetClient)
 	api.PUT("/clients/:id", clientHandler.UpdateClient)
-	// api.DELETE("/clients/:id", clientHandler.DeleteClient)
+	api.DELETE("/clients/:id", clientHandler.DeleteClient)
 
 	// Payment routes
 	api.GET("/payments", paymentHandler.GetAllPayments)

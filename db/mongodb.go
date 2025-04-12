@@ -134,3 +134,17 @@ func (m *MongoRepo) UpdateMany(collectionName string, filter any, update any) (*
 
 	return result, nil
 }
+
+// DeleteOne deletes a single document from a collection
+func (m *MongoRepo) DeleteOne(collectionName string, filter any) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	collection := m.Db.Collection(collectionName)
+	_, err := collection.DeleteOne(ctx, filter)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

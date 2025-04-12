@@ -80,3 +80,13 @@ func (r *ClientRepository) GetAll(userID primitive.ObjectID) ([]models.Client, e
 func (r *ClientRepository) UpdateLastPaymentDate(clientID primitive.ObjectID, paymentDate primitive.DateTime) error {
 	return r.Mongo.UpdateOne("clients", bson.M{"_id": clientID}, bson.M{"$set": bson.M{"last_payment_date": paymentDate}})
 }
+
+func (r *ClientRepository) Delete(id string) error {
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return fmt.Errorf("invalid client ID: %v", err)
+	}
+
+	filter := bson.M{"_id": objID}
+	return r.Mongo.DeleteOne("clients", filter)
+}

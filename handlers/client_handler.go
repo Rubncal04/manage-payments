@@ -134,3 +134,27 @@ func (h *ClientHandler) UpdateClient(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, updatedClient)
 }
+
+func (h *ClientHandler) DeleteClient(c echo.Context) error {
+	id, err := primitive.ObjectIDFromHex(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid client ID"})
+	}
+
+	client, err := h.clientRepo.GetByID(id.Hex())
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "Client not found"})
+	}
+
+	userID, ok := c.Get("user_id").(primitive.ObjectID)
+	if !ok || client.UserID != userID {
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Unauthorized"})
+	}
+
+	err = h.clientRepo.Delete(id.Hex())
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to delete client"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "Client deleted successfully"})
+}
