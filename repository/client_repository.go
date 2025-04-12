@@ -78,7 +78,7 @@ func (r *ClientRepository) GetAll(userID primitive.ObjectID) ([]models.Client, e
 }
 
 func (r *ClientRepository) UpdateLastPaymentDate(clientID primitive.ObjectID, paymentDate primitive.DateTime) error {
-	return r.Mongo.UpdateOne("clients", bson.M{"_id": clientID}, bson.M{"$set": bson.M{"last_payment_date": paymentDate}})
+	return r.Mongo.UpdateOne("clients", bson.M{"_id": clientID}, bson.M{"$set": bson.M{"last_payment_date": paymentDate, "status": "active"}})
 }
 
 func (r *ClientRepository) Delete(id string) error {
