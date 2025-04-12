@@ -19,7 +19,7 @@ func SendPaymentReminders(mongoRepo *db.MongoRepo, notifier notifications.Notifi
 
 	var clients []models.Client
 	// Traer solo usuarios que no han pagado.
-	err := mongoRepo.FindAll("clients", bson.M{"paid": false}, &clients)
+	err := mongoRepo.FindAll("clients", bson.M{"status": "inactive"}, &clients)
 	if err != nil {
 		log.Printf("Error retrieving clients: %v", err)
 		return

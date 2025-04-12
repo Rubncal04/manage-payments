@@ -1,14 +1,16 @@
 # YouTube Premium Payment Management API
 
-API for managing YouTube Premium payments, including user authentication, payment management, and WhatsApp notifications.
+API for managing YouTube Premium payments, including user authentication, client management, payment processing, and automated notifications.
 
 ## Features
 
 - User authentication with JWT
-- User and payment management
-- WhatsApp notifications using Twilio
-- Automatic payment status updates
+- Client management per user
+- Payment processing with state machine
+- Automated WhatsApp notifications for payment reminders
+- Scheduled payment status updates
 - RESTful API with Echo framework
+- MongoDB for data persistence
 
 ## Requirements
 
@@ -27,10 +29,10 @@ API for managing YouTube Premium payments, including user authentication, paymen
 ├── handlers/      # HTTP request handlers
 ├── middleware/    # HTTP middleware (auth, logging, etc.)
 ├── models/        # Data models and structures
-├── notifications/ # WhatsApp notification service
+├── notifications/ # WhatsApp notification service using Twilio
 ├── repository/    # Data access layer
 ├── routes/        # API route definitions
-├── scheduler/     # Scheduled tasks and cron jobs
+├── scheduler/     # Scheduled tasks for payment reminders and status updates
 ├── server/        # Server configuration and setup
 ├── .env           # Environment variables
 ├── go.mod         # Go module definition
@@ -43,8 +45,8 @@ API for managing YouTube Premium payments, including user authentication, paymen
 
 1. Clone the repository:
 ```bash
-git clone [repository-url]
-cd youtube-premium
+git clone [git@github.com:Rubncal04/manage-payments.git]
+cd manage-payments
 ```
 
 2. Install dependencies:
@@ -64,7 +66,7 @@ export JWT_SECRET="your-jwt-secret"
 # Twilio
 export TWILIO_ACCOUNT_SID="your-account-sid"
 export TWILIO_AUTH_TOKEN="your-auth-token"
-export TWILIO_PHONE_NUMBER="your-twilio-number"
+export TWILIO_FROM_WHATSAPP="your-twilio-number"
 ```
 
 ## API Documentation
@@ -81,9 +83,7 @@ Request Body:
     "username": "string",
     "email": "string",
     "password": "string",
-    "name": "string",
-    "cell_phone": "string",
-    "date_to_pay": "string"
+    "name": "string"
 }
 
 Response: 201 Created
@@ -92,8 +92,6 @@ Response: 201 Created
     "username": "string",
     "email": "string",
     "name": "string",
-    "cell_phone": "string",
-    "date_to_pay": "string",
     "created_at": "string"
 }
 ```
@@ -114,7 +112,13 @@ Response: 200 OK
     "access_token": "string",
     "refresh_token": "string",
     "token_type": "Bearer",
-    "expires_in": 3600
+    "expires_in": 3600,
+    "user": {
+        "id": "string",
+        "username": "string",
+        "email": "string",
+        "name": "string"
+    }
 }
 ```
 
@@ -136,49 +140,51 @@ Response: 200 OK
 }
 ```
 
-### Users
+### Clients
 
-#### Get All Users
+#### Get All Clients
 ```http
-GET /api/users
+GET /api/clients
 Authorization: Bearer {token}
 
 Response: 200 OK
 [
     {
         "id": "string",
-        "username": "string",
-        "email": "string",
+        "user_id": "string",
         "name": "string",
         "cell_phone": "string",
-        "date_to_pay": "string",
+        "day_to_pay": "string",
+        "status": "string",
+        "last_payment_date": "string",
         "created_at": "string",
         "updated_at": "string"
     }
 ]
 ```
 
-#### Get User by ID
+#### Get Client by ID
 ```http
-GET /api/users/{id}
+GET /api/clients/{id}
 Authorization: Bearer {token}
 
 Response: 200 OK
 {
     "id": "string",
-    "username": "string",
-    "email": "string",
+    "user_id": "string",
     "name": "string",
     "cell_phone": "string",
-    "date_to_pay": "string",
+    "day_to_pay": "string",
+    "status": "string",
+    "last_payment_date": "string",
     "created_at": "string",
     "updated_at": "string"
 }
 ```
 
-#### Update User
+#### Create Client
 ```http
-PUT /api/users/{id}
+POST /api/clients
 Authorization: Bearer {token}
 Content-Type: application/json
 
@@ -186,27 +192,47 @@ Request Body:
 {
     "name": "string",
     "cell_phone": "string",
-    "date_to_pay": "string"
+    "day_to_pay": "string"
+}
+
+Response: 201 Created
+{
+    "id": "string",
+    "user_id": "string",
+    "name": "string",
+    "cell_phone": "string",
+    "day_to_pay": "string",
+    "status": "active",
+    "last_payment_date": null,
+    "created_at": "string",
+    "updated_at": "string"
+}
+```
+
+#### Update Client
+```http
+PUT /api/clients/{id}
+Authorization: Bearer {token}
+Content-Type: application/json
+
+Request Body:
+{
+    "name": "string",
+    "cell_phone": "string",
+    "day_to_pay": "string"
 }
 
 Response: 200 OK
 {
     "id": "string",
-    "username": "string",
-    "email": "string",
+    "user_id": "string",
     "name": "string",
     "cell_phone": "string",
-    "date_to_pay": "string",
+    "day_to_pay": "string",
+    "status": "string",
+    "last_payment_date": "string",
     "updated_at": "string"
 }
-```
-
-#### Delete User
-```http
-DELETE /api/users/{id}
-Authorization: Bearer {token}
-
-Response: 204 No Content
 ```
 
 ### Payments
@@ -220,60 +246,97 @@ Response: 200 OK
 [
     {
         "id": "string",
-        "user_id": "string",
+        "client_id": "string",
         "amount": "number",
         "payment_date": "string",
         "status": "string",
-        "created_at": "string"
+        "error": "string",
+        "created_at": "string",
+        "updated_at": "string"
     }
 ]
 ```
 
-#### Get User's Payments
+#### Get Client's Payments
 ```http
-GET /api/{userId}/payments
+GET /api/clients/{clientId}/payments
 Authorization: Bearer {token}
 
 Response: 200 OK
 [
     {
         "id": "string",
-        "user_id": "string",
+        "client_id": "string",
         "amount": "number",
         "payment_date": "string",
         "status": "string",
-        "created_at": "string"
+        "error": "string",
+        "created_at": "string",
+        "updated_at": "string"
     }
 ]
 ```
 
 #### Create Payment
 ```http
-POST /api/{userId}/payments
+POST /api/clients/{clientId}/payments
 Authorization: Bearer {token}
 Content-Type: application/json
 
 Request Body:
 {
-    "amount": "number",
-    "payment_date": "string"
+    "amount": "number"
 }
 
 Response: 201 Created
 {
     "id": "string",
-    "user_id": "string",
+    "client_id": "string",
     "amount": "number",
     "payment_date": "string",
-    "status": "string",
-    "created_at": "string"
+    "status": "processing",
+    "created_at": "string",
+    "updated_at": "string"
 }
 ```
 
 ## Scheduled Tasks
 
-- Daily payment verification at 17:00
-- Payment status updates on the 13th and 25th of each month
+The system includes automated tasks for payment management:
+
+1. **Daily Payment Verification** (16:00 every day)
+   - Checks for pending payments
+   - Sends WhatsApp reminders to clients who haven't paid
+   - Uses Twilio for WhatsApp notifications
+
+2. **Monthly Payment Status Updates**
+   - Runs on the 13th of each month for clients with payment dates 15-20
+   - Runs on the 25th of each month for clients with payment dates 28-30
+   - Updates payment statuses and sends notifications
+
+## Payment States
+
+The payment system implements a state machine with the following states:
+
+1. **Processing** (`processing`)
+   - Initial state when a payment is created
+   - Payment is being processed
+
+2. **Completed** (`completed`)
+   - Final state when payment is successful
+   - Updates client's last payment date
+
+3. **Rejected** (`rejected`)
+   - Final state when payment fails
+   - Includes error message explaining the failure
+   - Does not update client's last payment date
+
+## Security
+
+- All routes except `/register`, `/login`, and `/refresh` require authentication
+- Users can only access their own clients and payments
+- JWT tokens are used for authentication
+- Passwords are hashed before storage
 
 ## Contributing
 

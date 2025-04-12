@@ -42,7 +42,6 @@ func UpdatePaymentStatus(mongoRepo *db.MongoRepo) error {
 	// Create the update to set paid=false and status=inactive
 	update := bson.M{
 		"$set": bson.M{
-			"paid":   false,
 			"status": "inactive",
 		},
 	}
