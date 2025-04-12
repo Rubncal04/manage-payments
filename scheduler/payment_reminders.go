@@ -6,7 +6,6 @@ import (
 	"github/Rubncal04/youtube-premium/models"
 	"github/Rubncal04/youtube-premium/notifications"
 	"log"
-	"strconv"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -18,30 +17,26 @@ func SendPaymentReminders(mongoRepo *db.MongoRepo, notifier notifications.Notifi
 	now := time.Now()
 	currentDay := now.Day()
 
-	var users []models.User
+	var clients []models.Client
 	// Traer solo usuarios que no han pagado.
-	err := mongoRepo.FindAll("users", bson.M{"paid": false}, &users)
+	err := mongoRepo.FindAll("clients", bson.M{"paid": false}, &clients)
 	if err != nil {
-		log.Printf("Error retrieving users: %v", err)
+		log.Printf("Error retrieving clients: %v", err)
 		return
 	}
 
-	for _, user := range users {
-		dueDay, err := strconv.Atoi(user.DateToPay)
-		if err != nil {
-			log.Printf("Error converting date_to_pay for user %s: %v", user.ID.Hex(), err)
-			continue
-		}
+	for _, client := range clients {
+		dueDay := client.DayToPay
 
 		// Si el día actual está dentro de la ventana de 5 días a partir del día de pago.
 		if currentDay >= dueDay && currentDay <= dueDay+4 {
 			message := "Hola, te recuerdo el compromiso que tienes con YouTube Premium. ¡Quédate al día con tu pago! 😉"
-			log.Printf("Sending reminder to user %s via Whatsapp...", user.Name)
+			log.Printf("Sending reminder to client %s via Whatsapp...", client.Name)
 
 			// Enviar recordatorio usando el servicio de notificaciones.
-			err := notifier.SendReminder(user, message)
+			err := notifier.SendReminder(client, message)
 			if err != nil {
-				log.Printf("Error sending reminder to user %s: %v", user.Name, err)
+				log.Printf("Error sending reminder to client %s: %v", client.Name, err)
 			}
 		}
 	}

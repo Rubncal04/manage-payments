@@ -33,7 +33,6 @@ func (r *UserRepository) CreateUser(user *models.User) (models.User, error) {
 		ID:        coll.InsertedID.(primitive.ObjectID),
 		Name:      user.Name,
 		CellPhone: user.CellPhone,
-		Paid:      user.Paid,
 	}
 
 	if err != nil {
@@ -51,7 +50,7 @@ func (r *UserRepository) UpdateUser(userID string, updateData bson.M) error {
 
 	filter := bson.M{"_id": objID}
 
-	// Asegurarse de que updateData use $set
+	// Make sure updateData uses $set
 	update := bson.M{
 		"$set": updateData,
 	}

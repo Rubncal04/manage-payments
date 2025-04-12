@@ -7,13 +7,14 @@ import (
 	"github/Rubncal04/youtube-premium/auth"
 
 	"github.com/labstack/echo/v4"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func AuthMiddleware(secretKey string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			// Skip authentication for public routes
-			if c.Path() == "/" || c.Path() == "/login" || c.Path() == "/refresh" {
+			if c.Path() == "/register" || c.Path() == "/login" || c.Path() == "/refresh" {
 				return next(c)
 			}
 
@@ -47,8 +48,16 @@ func AuthMiddleware(secretKey string) echo.MiddlewareFunc {
 				})
 			}
 
+			// Convert userID string to ObjectID
+			userID, err := primitive.ObjectIDFromHex(claims.UserID)
+			if err != nil {
+				return c.JSON(http.StatusUnauthorized, map[string]string{
+					"error": "invalid user ID in token",
+				})
+			}
+
 			// Set the user ID in the context
-			c.Set("user_id", claims.UserID)
+			c.Set("user_id", userID)
 
 			return next(c)
 		}

@@ -26,20 +26,25 @@ func RegisterRoutes(e *echo.Echo, mongoRepo *db.MongoRepo, secretKey string) {
 	api := e.Group("/api/v1")
 	api.Use(middleware.AuthMiddleware(secretKey))
 
-	// Initialize repositories and handlers
-	userRepo := repository.NewUserRepository(mongoRepo)
-	userHandler := handlers.NewUserHandler(userRepo)
+	// Initialize repositories
+	// userRepo := repository.NewUserRepository(mongoRepo)
+	clientRepo := repository.NewClientRepository(mongoRepo)
 	paymentRepo := repository.NewPaymentRepository(mongoRepo)
-	paymentHandler := handlers.NewPaymentHandler(paymentRepo)
 
-	// User routes
-	api.GET("/users", userHandler.GetAllUsers)
-	// api.GET("/users/:id", userHandler.)
-	api.PUT("/users/:id", userHandler.UpdateUser)
-	// api.DELETE("/users/:id", userHandler.DeleteUser)
+	// Initialize handlers
+	// userHandler := handlers.NewUserHandler(userRepo)
+	clientHandler := handlers.NewClientHandler(clientRepo)
+	paymentHandler := handlers.NewPaymentHandler(paymentRepo, clientRepo)
+
+	// Client routes
+	api.POST("/clients", clientHandler.CreateClient)
+	api.GET("/clients", clientHandler.GetClients)
+	api.GET("/clients/:id", clientHandler.GetClient)
+	api.PUT("/clients/:id", clientHandler.UpdateClient)
+	// api.DELETE("/clients/:id", clientHandler.DeleteClient)
 
 	// Payment routes
 	api.GET("/payments", paymentHandler.GetAllPayments)
-	api.GET("/:userId/payments", paymentHandler.GetPaymentsByUser)
-	api.POST("/:userId/payments", paymentHandler.CreatePayment)
+	api.GET("/clients/:clientId/payments", paymentHandler.GetPaymentsByClient)
+	api.POST("/clients/:clientId/payments", paymentHandler.CreatePayment)
 }

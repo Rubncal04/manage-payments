@@ -61,7 +61,7 @@ func (ts *TwilioService) formatWhatsAppNumber(phone string) string {
 }
 
 // SendReminder sends a WhatsApp reminder using Twilio's API
-func (ts *TwilioService) SendReminder(user models.User, message string) error {
+func (ts *TwilioService) SendReminder(user models.Client, message string) error {
 	// Validate phone number
 	if err := ts.validatePhoneNumber(user.CellPhone); err != nil {
 		return fmt.Errorf("invalid phone number for user %s: %w", user.ID.Hex(), err)

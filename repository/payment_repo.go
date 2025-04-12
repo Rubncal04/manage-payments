@@ -34,7 +34,7 @@ func (r *PaymentRepository) CreatePayment(payment *models.Payment) (models.Payme
 
 	err = r.Mongo.UpdateOne(
 		"users",
-		bson.M{"_id": payment.UserID},
+		bson.M{"_id": payment.ClientID},
 		update,
 	)
 
@@ -46,16 +46,16 @@ func (r *PaymentRepository) CreatePayment(payment *models.Payment) (models.Payme
 		ID:          coll.InsertedID.(primitive.ObjectID),
 		Amount:      payment.Amount,
 		PaymentDate: payment.PaymentDate,
-		UserID:      payment.UserID,
+		ClientID:    payment.ClientID,
 		Status:      "completed",
 	}
 
 	return result, nil
 }
 
-func (r *PaymentRepository) GetPaymentsByUser(userID primitive.ObjectID) ([]models.Payment, error) {
+func (r *PaymentRepository) GetPaymentsByClientID(clientID primitive.ObjectID) ([]models.Payment, error) {
 	var payments []models.Payment
-	err := r.Mongo.FindAll("payments", bson.M{"user_id": userID}, &payments)
+	err := r.Mongo.FindAll("payments", bson.M{"client_id": clientID}, &payments)
 	if err != nil {
 		return nil, err
 	}

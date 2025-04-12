@@ -27,7 +27,7 @@ func NewTelegramService(botToken, chatID string) *TelegramService {
 
 // SendReminder envía un recordatorio a través de Telegram.
 // En este ejemplo, se utiliza el chat id global configurado, pero podrías modificarlo para que sea específico del usuario.
-func (ts *TelegramService) SendReminder(user models.User, message string) error {
+func (ts *TelegramService) SendReminder(user models.Client, message string) error {
 	// En este ejemplo, usamos el ChatID global; si el modelo tuviera un campo TelegramChatID, lo usarías aquí.
 	encodedMessage := url.QueryEscape(message)
 	urlStr := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage?chat_id=%s&text=%s", ts.BotToken, ts.ChatID, encodedMessage)

@@ -9,19 +9,15 @@ import (
 
 // En models/user.go
 type User struct {
-	ID              primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
-	Name            string             `bson:"name" json:"name"`
-	CellPhone       string             `bson:"cell_phone" json:"cell_phone"`
-	DateToPay       string             `bson:"date_to_pay" json:"date_to_pay"`
-	Paid            bool               `bson:"paid" json:"paid"`
-	Status          string             `bson:"status" json:"status"` // 'active', 'inactive'
-	LastPaymentDate time.Time          `bson:"last_payment_date" json:"last_payment_date"`
-	Username        string             `bson:"username" json:"username"`
-	Email           string             `bson:"email" json:"email"`
-	Password        string             `bson:"password" json:"-"`
-	Role            string             `bson:"role" json:"role"`
-	CreatedAt       time.Time          `bson:"created_at" json:"created_at"`
-	UpdatedAt       time.Time          `bson:"updated_at" json:"updated_at"`
+	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	Name      string             `bson:"name" json:"name"`
+	CellPhone string             `bson:"cell_phone" json:"cell_phone"`
+	Username  string             `bson:"username" json:"username"`
+	Email     string             `bson:"email" json:"email"`
+	Password  string             `bson:"password" json:"-"`
+	Role      string             `bson:"role" json:"role"`
+	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt time.Time          `bson:"updated_at" json:"updated_at"`
 }
 
 // HashPassword hashes the user's password
@@ -45,8 +41,6 @@ func NewUser(username, email, password string) (*User, error) {
 		Username:  username,
 		Email:     email,
 		Role:      "user", // Default role
-		Status:    "active",
-		Paid:      false,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}

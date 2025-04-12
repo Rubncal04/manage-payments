@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"net/http"
-	"time"
 
 	"github/Rubncal04/youtube-premium/auth"
 	"github/Rubncal04/youtube-premium/db"
@@ -18,12 +17,10 @@ type LoginRequest struct {
 }
 
 type RegisterRequest struct {
-	Username  string `json:"username"`
-	Email     string `json:"email"`
-	Password  string `json:"password"`
-	Name      string `json:"name"`
-	CellPhone string `json:"cell_phone"`
-	DateToPay string `json:"date_to_pay"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Name     string `json:"name"`
 }
 
 type RefreshRequest struct {
@@ -34,16 +31,11 @@ type AuthResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 	User         struct {
-		ID              string    `json:"id"`
-		Name            string    `json:"name"`
-		CellPhone       string    `json:"cell_phone"`
-		DateToPay       string    `json:"date_to_pay"`
-		Paid            bool      `json:"paid"`
-		Status          string    `json:"status"`
-		LastPaymentDate time.Time `json:"last_payment_date"`
-		Username        string    `json:"username"`
-		Email           string    `json:"email"`
-		Role            string    `json:"role"`
+		ID       string `json:"id"`
+		Name     string `json:"name"`
+		Username string `json:"username"`
+		Email    string `json:"email"`
+		Role     string `json:"role"`
 	} `json:"user"`
 }
 
@@ -69,11 +61,6 @@ func Register(c echo.Context, mongoRepo *db.MongoRepo) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "failed to create user")
 	}
-
-	// Set additional user fields
-	user.Name = req.Name
-	user.CellPhone = req.CellPhone
-	user.DateToPay = req.DateToPay
 
 	// Save user to database
 	_, err = mongoRepo.Create("users", user)
@@ -115,17 +102,20 @@ func Login(c echo.Context, mongoRepo *db.MongoRepo, secretKey string) error {
 	response := AuthResponse{
 		AccessToken:  tokenPair.AccessToken,
 		RefreshToken: tokenPair.RefreshToken,
+		User: struct {
+			ID       string `json:"id"`
+			Name     string `json:"name"`
+			Username string `json:"username"`
+			Email    string `json:"email"`
+			Role     string `json:"role"`
+		}{
+			ID:       user.ID.Hex(),
+			Name:     user.Name,
+			Username: user.Username,
+			Email:    user.Email,
+			Role:     user.Role,
+		},
 	}
-	response.User.ID = user.ID.Hex()
-	response.User.Name = user.Name
-	response.User.CellPhone = user.CellPhone
-	response.User.DateToPay = user.DateToPay
-	response.User.Paid = user.Paid
-	response.User.Status = user.Status
-	response.User.LastPaymentDate = user.LastPaymentDate
-	response.User.Username = user.Username
-	response.User.Email = user.Email
-	response.User.Role = user.Role
 
 	return c.JSON(http.StatusOK, response)
 }

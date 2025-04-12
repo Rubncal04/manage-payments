@@ -64,6 +64,9 @@ func generateToken(userID string, duration time.Duration, secretKey string) (str
 
 func ValidateToken(tokenString string, secretKey string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (any, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, ErrInvalidToken
+		}
 		return []byte(secretKey), nil
 	})
 
