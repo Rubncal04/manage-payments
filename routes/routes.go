@@ -30,10 +30,18 @@ func RegisterRoutes(e *echo.Echo, mongoRepo *db.MongoRepo, redisCache *cache.Red
 	// Initialize repositories
 	clientRepo := repository.NewClientRepository(mongoRepo, redisCache)
 	paymentRepo := repository.NewPaymentRepository(mongoRepo, redisCache)
+	priceConfigRepo := repository.NewPriceConfigurationRepository(mongoRepo, redisCache)
 
 	// Initialize handlers
 	clientHandler := handlers.NewClientHandler(clientRepo)
 	paymentHandler := handlers.NewPaymentHandler(paymentRepo, clientRepo)
+	priceConfigHandler := handlers.NewPriceConfigurationHandler(priceConfigRepo)
+
+	// Price Configuration routes
+	api.POST("/price-configuration", priceConfigHandler.CreatePriceConfig)
+	api.GET("/price-configuration", priceConfigHandler.GetPriceConfig)
+	api.PUT("/price-configuration", priceConfigHandler.UpdatePriceConfig)
+	api.DELETE("/price-configuration", priceConfigHandler.DeletePriceConfig)
 
 	// Payment routes - specific routes first
 	api.GET("/clients/:clientId/payments/:id", paymentHandler.GetOnePayment)
