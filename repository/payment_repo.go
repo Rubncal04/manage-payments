@@ -1,6 +1,9 @@
 package repository
 
 import (
+	"context"
+	"fmt"
+	"github/Rubncal04/youtube-premium/cache"
 	"github/Rubncal04/youtube-premium/db"
 	"github/Rubncal04/youtube-premium/models"
 	"time"
@@ -11,10 +14,14 @@ import (
 
 type PaymentRepository struct {
 	Mongo *db.MongoRepo
+	cache cache.Cache
 }
 
-func NewPaymentRepository(mongo *db.MongoRepo) *PaymentRepository {
-	return &PaymentRepository{Mongo: mongo}
+func NewPaymentRepository(mongo *db.MongoRepo, cache cache.Cache) *PaymentRepository {
+	return &PaymentRepository{
+		Mongo: mongo,
+		cache: cache,
+	}
 }
 
 // CreatePayment creates a new payment in processing state
@@ -27,6 +34,15 @@ func (r *PaymentRepository) CreatePayment(payment *models.Payment) error {
 	}
 
 	payment.ID = result.InsertedID.(primitive.ObjectID)
+
+	// Invalidar caché si está disponible
+	if r.cache != nil {
+		cache.InvalidateCache(context.Background(), r.cache,
+			fmt.Sprintf("payment:%s", payment.ID.Hex()),
+			fmt.Sprintf("payments:client:%s", payment.ClientID.Hex()),
+			"payments:all")
+	}
+
 	return nil
 }
 
@@ -40,7 +56,18 @@ func (r *PaymentRepository) CompletePayment(paymentID primitive.ObjectID) error 
 		},
 	}
 
-	return r.Mongo.UpdateOne("payments", filter, update)
+	err := r.Mongo.UpdateOne("payments", filter, update)
+	if err != nil {
+		return err
+	}
+
+	// Invalidar caché si está disponible
+	if r.cache != nil {
+		cache.InvalidateCache(context.Background(), r.cache,
+			fmt.Sprintf("payment:%s", paymentID.Hex()))
+	}
+
+	return nil
 }
 
 // RejectPayment updates a payment to rejected state with an error message
@@ -54,11 +81,35 @@ func (r *PaymentRepository) RejectPayment(paymentID primitive.ObjectID, errorMsg
 		},
 	}
 
-	return r.Mongo.UpdateOne("payments", filter, update)
+	err := r.Mongo.UpdateOne("payments", filter, update)
+	if err != nil {
+		return err
+	}
+
+	// Invalidar caché si está disponible
+	if r.cache != nil {
+		cache.InvalidateCache(context.Background(), r.cache,
+			fmt.Sprintf("payment:%s", paymentID.Hex()))
+	}
+
+	return nil
 }
 
 // GetPaymentsByClientID retrieves all payments for a specific client
 func (r *PaymentRepository) GetPaymentsByClientID(clientID primitive.ObjectID) ([]models.Payment, error) {
+	if r.cache != nil {
+		key := fmt.Sprintf("payments:client:%s", clientID.Hex())
+		var payments []models.Payment
+		result, err := cache.WithCache(context.Background(), r.cache, key, payments, 1*time.Hour, func() ([]models.Payment, error) {
+			filter := bson.M{"client_id": clientID}
+			var dbPayments []models.Payment
+			err := r.Mongo.FindAll("payments", filter, &dbPayments)
+			return dbPayments, err
+		})
+		return result, err
+	}
+
+	// Si no hay caché, usar MongoDB directamente
 	filter := bson.M{"client_id": clientID}
 	var payments []models.Payment
 	err := r.Mongo.FindAll("payments", filter, &payments)
@@ -70,6 +121,18 @@ func (r *PaymentRepository) GetPaymentsByClientID(clientID primitive.ObjectID) (
 
 // GetAllPayments retrieves all payments
 func (r *PaymentRepository) GetAllPayments() ([]models.Payment, error) {
+	if r.cache != nil {
+		key := "payments:all"
+		var payments []models.Payment
+		result, err := cache.WithCache(context.Background(), r.cache, key, payments, 1*time.Hour, func() ([]models.Payment, error) {
+			var dbPayments []models.Payment
+			err := r.Mongo.FindAll("payments", bson.M{}, &dbPayments)
+			return dbPayments, err
+		})
+		return result, err
+	}
+
+	// Si no hay caché, usar MongoDB directamente
 	var payments []models.Payment
 	err := r.Mongo.FindAll("payments", bson.M{}, &payments)
 	if err != nil {
@@ -80,6 +143,22 @@ func (r *PaymentRepository) GetAllPayments() ([]models.Payment, error) {
 
 // GetByID retrieves a payment by its ID
 func (r *PaymentRepository) GetByID(id primitive.ObjectID) (*models.Payment, error) {
+	if r.cache != nil {
+		key := fmt.Sprintf("payment:%s", id.Hex())
+		var payment models.Payment
+		result, err := cache.WithCache(context.Background(), r.cache, key, payment, 1*time.Hour, func() (models.Payment, error) {
+			filter := bson.M{"_id": id}
+			var dbPayment models.Payment
+			_, err := r.Mongo.FindOne("payments", filter, &dbPayment)
+			return dbPayment, err
+		})
+		if err != nil {
+			return nil, err
+		}
+		return &result, nil
+	}
+
+	// Si no hay caché, usar MongoDB directamente
 	filter := bson.M{"_id": id}
 	var payment models.Payment
 	_, err := r.Mongo.FindOne("payments", filter, &payment)

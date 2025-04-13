@@ -7,10 +7,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
+	"github/Rubncal04/youtube-premium/cache"
 	"github/Rubncal04/youtube-premium/config"
 	"github/Rubncal04/youtube-premium/db"
 	"github/Rubncal04/youtube-premium/notifications"
@@ -49,13 +51,25 @@ func StartServer() {
 	}
 	defer mongoRepo.Close()
 
+	// Initialize Redis cache
+	redisDB, err := strconv.Atoi(envVariables.REDIS_DATABASES)
+	if err != nil {
+		redisDB = 0
+	}
+	redisCache, err := cache.NewRedisCache(envVariables.REDIS_ADDRESS, envVariables.REDIS_PASSWORD, envVariables.REDIS_PORT, redisDB)
+	if err != nil {
+		log.Printf("Warning: Failed to connect to Redis: %v", err)
+		log.Println("Continuing without cache...")
+		redisCache = nil
+	}
+
 	// Root route
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Welcome to YouTube Premium API")
 	})
 
 	// Register all routes
-	routes.RegisterRoutes(e, mongoRepo, secretKey)
+	routes.RegisterRoutes(e, mongoRepo, redisCache, secretKey)
 
 	// Start server
 	port := envVariables.PORT

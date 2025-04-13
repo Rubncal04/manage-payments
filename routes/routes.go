@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"github/Rubncal04/youtube-premium/cache"
 	"github/Rubncal04/youtube-premium/db"
 	"github/Rubncal04/youtube-premium/handlers"
 	"github/Rubncal04/youtube-premium/middleware"
@@ -10,7 +11,7 @@ import (
 )
 
 // RegisterRoutes define las rutas principales de la aplicación.
-func RegisterRoutes(e *echo.Echo, mongoRepo *db.MongoRepo, secretKey string) {
+func RegisterRoutes(e *echo.Echo, mongoRepo *db.MongoRepo, redisCache *cache.RedisCache, secretKey string) {
 	// Public routes
 	e.POST("/register", func(c echo.Context) error {
 		return handlers.Register(c, mongoRepo)
@@ -27,8 +28,8 @@ func RegisterRoutes(e *echo.Echo, mongoRepo *db.MongoRepo, secretKey string) {
 	api.Use(middleware.AuthMiddleware(secretKey))
 
 	// Initialize repositories
-	clientRepo := repository.NewClientRepository(mongoRepo)
-	paymentRepo := repository.NewPaymentRepository(mongoRepo)
+	clientRepo := repository.NewClientRepository(mongoRepo, redisCache)
+	paymentRepo := repository.NewPaymentRepository(mongoRepo, redisCache)
 
 	// Initialize handlers
 	clientHandler := handlers.NewClientHandler(clientRepo)
